@@ -4,6 +4,9 @@ php
 // Define constants.
 define('GOOGLE_API_KEY', 'YOUR_GOOGLE_API_KEY'); 
 define('GOOGLE_DOC_ID', 'YOUR_GOOGLE_DOC_ID');
+define('PINECONE_API_KEY', 'YOUR_PINECONE_API_KEY');
+define('PINECONE_ENVIRONMENT', 'YOUR_PINECONE_ENVIRONMENT'); 
+define('PINECONE_INDEX_NAME', 'YOUR_PINECONE_INDEX_NAME');
 
 // Include necessary libraries.
 require_once __DIR__ . '/vendor/autoload.php'; // Assuming NLTK is installed via Composer
@@ -68,6 +71,21 @@ function embed_and_store_google_doc() {
         // Store the chunk and embedding in your vector database.
         upsert_embedding($chunk, $embedding); // Replace with your database storage logic
     }
+
+    // Execute the pinecone_helper.py script
+    $python_script_path = __DIR__ . '/pinecone_helper.py'; 
+    $command = "/usr/bin/python3 " . $python_script_path . " " . PINECONE_API_KEY . " " . PINECONE_ENVIRONMENT . " " . PINECONE_INDEX_NAME;
+
+    $output = shell_exec($command);
+
+    // Error handling and logging
+    if ($output === null) {
+        error_log('Error executing pinecone_helper.py script.');
+    } else {
+        error_log('Output from pinecone_helper.py: ' . $output); // Log the output for debugging
+    }
+
+
 }
 
 // Function to split text into sentences using NLTK.
