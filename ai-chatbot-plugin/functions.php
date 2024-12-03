@@ -7,6 +7,7 @@ define('GOOGLE_DOC_ID', 'YOUR_GOOGLE_DOC_ID');
 define('PINECONE_API_KEY', 'YOUR_PINECONE_API_KEY');
 define('PINECONE_ENVIRONMENT', 'YOUR_PINECONE_ENVIRONMENT'); 
 define('PINECONE_INDEX_NAME', 'YOUR_PINECONE_INDEX_NAME');
+define('PYTHON_SERVICE_URL', 'http://localhost:5000/query'); // Replace with your Python service URL
 
 // Include necessary libraries.
 require_once __DIR__ . '/vendor/autoload.php'; // Assuming NLTK is installed via Composer
@@ -115,5 +116,43 @@ if (!wp_next_scheduled('ai_chatbot_update_embeddings')) {
 
 // Hook the embedding function to the scheduled event.
 add_action('ai_chatbot_update_embeddings', 'embed_and_store_google_doc');
+
+// Create a custom REST API endpoint.
+add_action('rest_api_init', function () {
+    register_rest_route('ai-chatbot/v1', '/query', array(
+        'methods' => 'POST',
+        'callback' => 'ai_chatbot_query_handler',
+    ));
+});
+
+// Function to handle the query endpoint.
+function ai_chatbot_query_handler(WP_REST_Request $request) {
+    $question = $request->get_param('question');
+
+    if (empty($question)) {
+        return new WP_Error('missing_question', 'Please provide a question.', array('status' => 400));
+    }
+
+    // Send the question to the Python service.
+    $response = wp_remote_post(PYTHON_SERVICE_URL, array(
+        'body' => json_encode(array('question' => $question)),
+        'headers' => array('Content-Type' => 'application/json'),
+    ));
+
+    // Handle errors during communication with the Python service.
+    if (is_wp_error($response)) {
+        error_log('Error communicating with Python service: ' . $response->get_error_message());
+        return new WP_Error('python_service_error', 'Error communicating with the AI service.', array('status' => 500));
+    }
+
+    // Get the response from the Python service.
+    $response_body = wp_remote_retrieve_body($response);
+    $response_data = json_decode($response_body, true); 
+
+    // Return the response.
+    return new WP_REST_Response(array('answer' => $response_data['answer']), 200); 
+}
+
+
 
 ?>
